@@ -1,0 +1,34 @@
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].wds=1
+uci set wireless.@wifi-iface[0].ssid=Airfide11ad-1
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=18
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.wifi0.wds=1
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=sta
+uci set wireless.@wifi-iface[1].ssid=Airfide11ac-1
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=18
+uci delete wireless.@wifi-iface[1].network
+uci delete wireless.@wifi-iface[0].network
+
+uci commit wireless

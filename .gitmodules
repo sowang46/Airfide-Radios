@@ -1,0 +1,3 @@
+[submodule "wil6210-controller"]
+	path = wil6210-controller
+	url = https://github.com/sowang46/wil6210-controller.git

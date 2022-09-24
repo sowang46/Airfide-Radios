@@ -1,0 +1,484 @@
+iw wlan0 set power_save off
+
+wmitool 2002 &
+wmi_app -p 2002 -i 127.0.0.1 -S enable_scheduled_access
+
+echo 0 > /proc/sys/kernel/printk
+
+killall wmitool
+
+tftp 0x81000000 accton.bin
+protect off all && erase 60300000 +COPYIMGSIZE
+cp.b 81000000 60300000 $filesize
+
+amigo flashing:
+tftpboot 0x84000000 amigo-nor-D0-testing.img
+imgaddr=0x84000000 && source $imgaddr:script
+
+senao:
+tftpboot 0x42000000 senao-nor-ipq806x-single-2dec.img
+sf probe 0
+imgaddr=0x42000000 && source $imgaddr:script
+
+get firmware version:
+ifconfig wlan0 down
+   A=0x880A38
+   D=$(find /sys/kernel/debug/ieee80211/ -name wil6210)
+   echo $A > $D/mem_addr
+   res=`cat $D/mem_val`
+   res=${res#*=}
+   echo -n "11ad bootloader version is "
+   echo $(($res))
+
+power files for 11ac on Senao:
+cd /lib/firmware/AR900B/hw.2
+scp venkat@192.168.1.28:/tftpboot/senao-boardfiles/hw.2/boardData_AR900B_CUS238_5GMipiHigh_v2_004.bin a.bin
+cp a.bin boardData_AR900B_CUS239_5G_v2_001.bin
+
+echo 00:03:7f:8b:37:09 > /proc/sys/afn/afn_mac_rt/flush
+echo all > /proc/sys/afn/afn_mac_rt/flush 
+cat /proc/sys/afn/afn_mac_rt/info 
+
+
+
+Set up the flashing environment
+1. First ensure that the board console port is connected to the PC using these RS232 parameters:
+? 115200bps
+? 8N1
+2. Ensure that the PC is connected to the board using one of the Ethernet ports. The PC should have a
+TFTP server launched and listening on the interface to which the board is connected. At this stage
+power up the board and, after a few seconds, press any key during the countdown.
+Flashing commands
+The rnand-ipq806x-single.img is already a packed image and does not need any further
+packing. Start by copying the nand-ipq806x-single.img to the TFTP server root directory.
+1. Commands for the upgrade process:
+set ipaddr 192.168.1.1
+set serverip 192.168.1.xx (This should be the address of the TFTP server)
+set ethaddr 00:aa:bb:cc:dd:ee
+set bootargs console=ttyHSL1,115200n8
+ping ${serverip}
+
+
+tftpboot 0x42000000 nand-ipq806x-single.img
+2. Flash the image with this command:
+imgaddr=0x42000000 && source $imgaddr:script
+3. Reset the board once the flashed image is successful. The target device should be booting on
+the new image.
+4. Stop at U-boot and set the below bootargs and save
+set bootargs 'console=ttyMSM0,115200'
+saveenv
+5. Reset the boot. Now it will boot kernel.
+
+
+Simple configuration steps:
+11ad:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testad
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+
+wpa_supplicant -B -d athr -i ath0 -c /var/run/wpa_supplicant-ath0.conf
+wpa_supplicant -B -D athr -i ath0 -c /var/run/wpa_supplicant-ath0.conf
+
+11ac+11ad:
+AP:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testad
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=22
+uci set wireless.wifi0.channel=100
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=ap
+uci set wireless.@wifi-iface[1].ssid=Airfide
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=22
+
+
+STA:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testad
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=22
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=sta
+uci set wireless.@wifi-iface[1].ssid=Airfide
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=22
+
+
+echo 1 > /proc/irq/ “number of eth1”/smp_affinity (eth1 run on cpu0)
+
+SNMP agent setup:
+afnwlanconfig &
+
+snmpd -f -Lsd udp:161 -c /etc/snmp/snmpd.conf
+
+old SNMP:
+get channel : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.0.1.0
+
+set channel : snmpset -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.0.1.0 i 1
+
+
+set ssid : snmpset -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.2.0 s "Airfide"
+
+get ssid : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.2.0
+
+
+get iface : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.0.3.0
+
+
+get key : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.6.0
+
+set key : snmpset -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.6.0 s "Airfide123" 
+
+
+get enc : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.5.0
+
+set enc : snmpset -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.1.5.0 s "psk2+gcmp"
+
+
+get disabled : snmpget -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.0.4.0
+
+set disabled : snmpset -v 2c -c airfide 10.0.0.230:161 1.0.1120.4.1.0.4.0 i 1
+
+new SNMP and IOCTLs:
+
+
+
+
+ /mnt/jffs2/register 46 'Node cbnl' CambridgeUK 33.7689 -111.98765 Cambridge
+where 46 = company id (CBNL has an id of 46 in AWS database)
+Nodecbnl is the nodename (should be replaced)
+NodeAddress is the address of the node
+lat is the latitude
+lng is the longitude
+Cambridge is the community registered in AWS
+
+we need to run this register on all the 4 nodes with the command line arguments replaced with right values
+also, all the nodes have gone down - we don't know the IP of the AP to figure out the IPs of the 
+stations (we need to start deviceagent and cmd on all)
+
+
+
+Cascade commands:
+hostapd.conf
+driver=atheros
+
+ssid=Airfide
+
+interface=ath0
+
+bridge=br-lan
+
+hw_mode=a
+
+auth_algs=1
+
+wpa_passphrase=afn001234
+
+wpa=2
+
+wpa_key_mgmt=WPA-PSK
+
+wpa_pairwise=CCMP
+
+
+
+iwconfig ath0 txpower 17
+
+wlanconfig  ath0 list
+
+iwpriv ath0 txrx_fw_stats 6 
+
+
+Cascade AP:
+iwpriv ath0 get_wds
+iwpriv ath0 txrx_vap_stats 3/6
+iwconfig ath0 txpower 22
+iwconfig ath0 channel 100
+iwpriv ath0 get_nss
+iwpriv ath0 g_disablecoext
+iwpriv ath0 uapsd 1
+iwpriv wifi0 rxchainmask 15
+iwpriv wifi0 txchainmask 15
+iwpriv wifi0 burst 1
+iwpriv ath0 txrx_fw_stats 6
+wlanconfig ath0 list
+
+
+Cascade STA:
+insmod asf.ko
+insmod adf.ko
+insmod ath_hal.ko
+insmod ath_spectral.ko
+insmod ath_dfs.ko
+insmod ath_rate_atheros.ko
+insmod ath_dev.ko
+insmod hst_tx99.ko
+insmod ath_dev.ko
+insmod umac.ko
+
+wlanconfig ath0 create wlandev wifi0 wlanmode sta
+iwconfig ath0 essid Airfide
+iwpriv ath0 mode 11ACVHT80
+iwpriv ath0 wds 1
+iwpriv ath0 uapsd 1
+ifconfig ath0 up
+brctl addif br-lan ath0
+
+iwpriv ath0 disablecoext 1
+
+
+
+
+Ford setup:
+
+SENAO-1[AP]:
+uci set wireless.radio0.channel=1
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testford
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].wds=1
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=18
+uci set wireless.wifi0.channel=104
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.wifi0.wds=1
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=ap
+uci set wireless.@wifi-iface[1].ssid=Airfide1
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=18
+uci delete wireless.@wifi-iface[1].network
+uci delete wireless.@wifi-iface[0].network
+
+
+SENAO-2[STA]:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].wds=1
+uci set wireless.@wifi-iface[0].ssid=Airfide11ad-1
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=18
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.wifi0.wds=1
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=sta
+uci set wireless.@wifi-iface[1].ssid=Airfide11ac-1
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=18
+uci delete wireless.@wifi-iface[1].network
+uci delete wireless.@wifi-iface[0].network
+
+
+
+Amigo[STA]:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].wds=1
+uci set wireless.@wifi-iface[0].ssid=testford
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.wifi1.hwmode=11ac
+uci set wireless.wifi1.htmode=HT80
+uci set wireless.wifi1.txpower=22
+uci set wireless.wifi1.burst=1
+uci set wireless.wifi1.disabled=0
+uci set wireless.wifi1.wds=1
+uci set wireless.@wifi-iface[2]=wifi-iface
+uci set wireless.@wifi-iface[2].device=wifi0
+uci set wireless.@wifi-iface[2].mode=sta
+uci set wireless.@wifi-iface[2].ssid=Airfide1
+uci set wireless.@wifi-iface[2].wds=1
+uci set wireless.@wifi-iface[2].encryption=psk2
+uci set wireless.@wifi-iface[2].key=afn001234
+uci set wireless.@wifi-iface[2].txchainmask=15
+uci set wireless.@wifi-iface[2].rxchainmask=15
+uci set wireless.@wifi-iface[2].shortgi=1
+uci set wireless.@wifi-iface[2].wmm=1
+uci set wireless.@wifi-iface[2].uapsd=1
+uci set wireless.@wifi-iface[2].ldpc=3
+uci set wireless.@wifi-iface[2].tx_stbc=1
+uci set wireless.@wifi-iface[2].rx_stbc=1
+uci set wireless.@wifi-iface[2].disablecoext=1    
+uci set wireless.@wifi-iface[2].txpower=22
+
+
+SENAO-3[AP]:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testad
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=22
+uci set wireless.wifi0.channel=100
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=ap
+uci set wireless.@wifi-iface[1].ssid=Airfide
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=22
+
+
+COMPEX[STA]:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].ssid=testad
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=22
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.@wifi-iface[1]=wifi-iface
+uci set wireless.@wifi-iface[1].device=wifi0
+uci set wireless.@wifi-iface[1].mode=sta
+uci set wireless.@wifi-iface[1].ssid=Airfide
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].encryption=psk2
+uci set wireless.@wifi-iface[1].key=afn001234
+uci set wireless.@wifi-iface[1].txchainmask=15
+uci set wireless.@wifi-iface[1].rxchainmask=15
+uci set wireless.@wifi-iface[1].shortgi=1
+uci set wireless.@wifi-iface[1].wmm=1
+uci set wireless.@wifi-iface[1].uapsd=1
+uci set wireless.@wifi-iface[1].ldpc=3
+uci set wireless.@wifi-iface[1].tx_stbc=1
+uci set wireless.@wifi-iface[1].rx_stbc=1
+uci set wireless.@wifi-iface[1].disablecoext=1    
+uci set wireless.@wifi-iface[1].txpower=22
+
+
+
+AV[STA]:
+uci set wireless.radio0.disabled=0
+
+uci set wireless.@wifi-iface[0].wds=1
+uci set wireless.@wifi-iface[0].ssid=testford1
+uci set wireless.@wifi-iface[0].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[0].key="testing123"
+uci set wireless.@wifi-iface[0].mode=sta
+uci set wireless.radio1.disabled=0
+
+uci set wireless.@wifi-iface[1].wds=1
+uci set wireless.@wifi-iface[1].ssid=testford2
+uci set wireless.@wifi-iface[1].encryption=psk2+gcmp
+uci set wireless.@wifi-iface[1].key="testing123"
+uci set wireless.@wifi-iface[1].mode=sta
+uci set wireless.wifi0.hwmode=11ac
+uci set wireless.wifi0.htmode=HT80
+uci set wireless.wifi0.txpower=18
+uci set wireless.wifi0.burst=1
+uci set wireless.wifi0.disabled=0
+uci set wireless.wifi0.wds=1
+uci set wireless.@wifi-iface[2]=wifi-iface
+uci set wireless.@wifi-iface[2].device=wifi0
+uci set wireless.@wifi-iface[2].mode=sta
+uci set wireless.@wifi-iface[2].ssid=Airfide1
+uci set wireless.@wifi-iface[2].wds=1
+uci set wireless.@wifi-iface[2].encryption=psk2
+uci set wireless.@wifi-iface[2].key=afn001234
+uci set wireless.@wifi-iface[2].txchainmask=15
+uci set wireless.@wifi-iface[2].rxchainmask=15
+uci set wireless.@wifi-iface[2].shortgi=1
+uci set wireless.@wifi-iface[2].wmm=1
+uci set wireless.@wifi-iface[2].uapsd=1
+uci set wireless.@wifi-iface[2].ldpc=3
+uci set wireless.@wifi-iface[2].tx_stbc=1
+uci set wireless.@wifi-iface[2].rx_stbc=1
+uci set wireless.@wifi-iface[2].disablecoext=1    
+uci set wireless.@wifi-iface[2].txpower=18
+uci delete wireless.@wifi-iface[0].network
+uci delete wireless.@wifi-iface[1].network
+uci delete wireless.@wifi-iface[2].network
+
+
