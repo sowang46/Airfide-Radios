@@ -1,3 +1,6 @@
 [submodule "wil6210-controller"]
 	path = wil6210-controller
 	url = https://github.com/sowang46/wil6210-controller.git
+[submodule "wil6210-firmware-patch"]
+	path = wil6210-firmware-patch
+	url = https://github.com/sowang46/wil6210-firmware-patch.git
